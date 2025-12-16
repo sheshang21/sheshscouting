@@ -1,367 +1,266 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, TrendingUp, AlertCircle, Download, Filter } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>₹20-₹30 Stock Scout — India</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .gradient-text { background: linear-gradient(90deg, #10b981, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white min-h-screen">
+    <div id="app" class="container mx-auto p-4 max-w-7xl"></div>
 
-const StockScoutApp = () => {
-  const [stocks, setStocks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [filters, setFilters] = useState({
-    minScore: 65,
-    minPrice: 100,
-    maxPrice: 1200,
-    sectors: [],
-    mode: 'all'
-  });
-  const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
+    <script>
+        // NSE Stock List
+        const NSE_STOCKS = [
+            'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 'HINDUNILVR.NS', 'ITC.NS', 'SBIN.NS',
+            'BHARTIARTL.NS', 'KOTAKBANK.NS', 'LT.NS', 'BAJFINANCE.NS', 'ASIANPAINT.NS', 'MARUTI.NS', 'HCLTECH.NS',
+            'TITAN.NS', 'AXISBANK.NS', 'ULTRACEMCO.NS', 'SUNPHARMA.NS', 'WIPRO.NS', 'NESTLEIND.NS', 'BAJAJFINSV.NS',
+            'NTPC.NS', 'ONGC.NS', 'POWERGRID.NS', 'M&M.NS', 'TATAMOTORS.NS', 'TATASTEEL.NS', 'TECHM.NS', 'JSWSTEEL.NS',
+            'ADANIENT.NS', 'ADANIPORTS.NS', 'COALINDIA.NS', 'INDUSINDBK.NS', 'DRREDDY.NS', 'EICHERMOT.NS', 'GRASIM.NS',
+            'APOLLOHOSP.NS', 'BRITANNIA.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'HEROMOTOCO.NS', 'HINDALCO.NS', 'TATACONSUM.NS',
+            'BAJAJ-AUTO.NS', 'SHRIRAMFIN.NS', 'BPCL.NS', 'LTIM.NS', 'SBILIFE.NS', 'TRENT.NS', 'HDFCLIFE.NS',
+            'VEDL.NS', 'ADANIGREEN.NS', 'GODREJCP.NS', 'SIEMENS.NS', 'DLF.NS', 'PIDILITIND.NS', 'ICICIGI.NS',
+            'DABUR.NS', 'GAIL.NS', 'AMBUJACEM.NS', 'BANKBARODA.NS', 'HAVELLS.NS', 'DMART.NS', 'INDIGO.NS',
+            'ADANIPOWER.NS', 'CHOLAFIN.NS', 'JINDALSTEL.NS', 'MOTHERSON.NS', 'PNB.NS', 'TORNTPHARM.NS',
+            'BOSCHLTD.NS', 'SRF.NS', 'MCDOWELL-N.NS', 'BEL.NS', 'BERGEPAINT.NS', 'COLPAL.NS', 'ZOMATO.NS',
+            'TATAPOWER.NS', 'CANBK.NS', 'UNIONBANK.NS', 'IDFCFIRSTB.NS', 'FEDERALBNK.NS', 'BANDHANBNK.NS',
+            'LUPIN.NS', 'AUROPHARMA.NS', 'BIOCON.NS', 'ALKEM.NS', 'MARICO.NS', 'SAIL.NS', 'NMDC.NS',
+            'POLYCAB.NS', 'CROMPTON.NS', 'VOLTAS.NS', 'DIXON.NS', 'CUMMINSIND.NS', 'ABB.NS', 'THERMAX.NS',
+        ];
 
-  const sectors = ['IT', 'Banking', 'Pharma', 'Auto', 'FMCG', 'Energy', 'Metals', 'Realty'];
-  
-  // Simulated stock data generator for demo
-  const generateMockData = () => {
-    const symbols = [
-      'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HDFC', 'SBIN', 'BHARTIARTL',
-      'ITC', 'KOTAKBANK', 'LT', 'AXISBANK', 'ASIANPAINT', 'MARUTI', 'TITAN',
-      'SUNPHARMA', 'ULTRACEMCO', 'NESTLEIND', 'BAJFINANCE', 'HCLTECH',
-      'WIPRO', 'M&M', 'NTPC', 'POWERGRID', 'TATASTEEL', 'INDUSINDBK', 'ADANIPORTS',
-      'COALINDIA', 'ONGC', 'TECHM', 'BAJAJFINSV', 'HINDALCO', 'DRREDDY', 'GRASIM',
-      'BRITANNIA', 'DIVISLAB', 'SHREECEM', 'CIPLA', 'EICHERMOT', 'JSWSTEEL'
-    ];
+        const SECTOR_MAP = {
+            'RELIANCE.NS': 'Oil & Gas', 'TCS.NS': 'IT', 'HDFCBANK.NS': 'Banking', 'INFY.NS': 'IT',
+            'ICICIBANK.NS': 'Banking', 'HINDUNILVR.NS': 'FMCG', 'ITC.NS': 'FMCG', 'SBIN.NS': 'PSU Bank',
+            'BHARTIARTL.NS': 'Telecom', 'KOTAKBANK.NS': 'Banking', 'LT.NS': 'Infrastructure', 'BAJFINANCE.NS': 'NBFC',
+            'ASIANPAINT.NS': 'Paints', 'MARUTI.NS': 'Auto', 'HCLTECH.NS': 'IT', 'TITAN.NS': 'Consumer Durables',
+        };
 
-    const sectorMap = {
-      'RELIANCE': 'Energy', 'TCS': 'IT', 'HDFCBANK': 'Banking', 'INFY': 'IT',
-      'ICICIBANK': 'Banking', 'HDFC': 'Banking', 'SBIN': 'Banking', 'BHARTIARTL': 'Telecom',
-      'ITC': 'FMCG', 'KOTAKBANK': 'Banking', 'LT': 'Infra', 'AXISBANK': 'Banking',
-      'ASIANPAINT': 'Paints', 'MARUTI': 'Auto', 'TITAN': 'Retail',
-      'SUNPHARMA': 'Pharma', 'ULTRACEMCO': 'Cement', 'NESTLEIND': 'FMCG',
-      'BAJFINANCE': 'NBFC', 'HCLTECH': 'IT', 'WIPRO': 'IT', 'M&M': 'Auto',
-      'NTPC': 'Power', 'POWERGRID': 'Power', 'TATASTEEL': 'Metals',
-      'INDUSINDBK': 'Banking', 'ADANIPORTS': 'Ports', 'COALINDIA': 'Coal',
-      'ONGC': 'Oil&Gas', 'TECHM': 'IT', 'BAJAJFINSV': 'NBFC', 'HINDALCO': 'Metals',
-      'DRREDDY': 'Pharma', 'GRASIM': 'Cement', 'BRITANNIA': 'FMCG',
-      'DIVISLAB': 'Pharma', 'SHREECEM': 'Cement', 'CIPLA': 'Pharma',
-      'EICHERMOT': 'Auto', 'JSWSTEEL': 'Metals'
-    };
+        let stocks = [];
+        let loading = false;
+        let progress = 0;
+        let filters = { minScore: 65, minPrice: 100, maxPrice: 1200 };
+        let sortKey = 'score';
+        let sortDir = 'desc';
 
-    return symbols.map(symbol => {
-      const price = Math.random() * 1000 + 150;
-      const atr = Math.random() * 30 + 8;
-      const score = Math.floor(Math.random() * 40) + 60;
-      const volumeMult = (Math.random() * 3 + 2).toFixed(1);
-      const rsi = Math.floor(Math.random() * 30) + 55;
-      const expectedMove = atr * (1.5 + Math.random() * 0.5);
-      const breakoutType = ['VWAP', 'Range', 'High'][Math.floor(Math.random() * 3)];
-
-      return {
-        symbol,
-        ltp: price.toFixed(2),
-        score,
-        volumeMult,
-        atr: atr.toFixed(2),
-        expectedMove: expectedMove.toFixed(2),
-        expectedMovePct: ((expectedMove / price) * 100).toFixed(2),
-        rsi,
-        sector: sectorMap[symbol] || 'Others',
-        breakoutType
-      };
-    }).filter(s => s.score >= 65).sort((a, b) => b.score - a.score);
-  };
-
-  const scanMarket = async () => {
-    setLoading(true);
-    setProgress(0);
-    
-    // Simulate scanning progress
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      setProgress(i);
-    }
-    
-    const data = generateMockData();
-    setStocks(data);
-    setLastUpdate(new Date());
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    scanMarket();
-  }, []);
-
-  const filteredStocks = stocks.filter(stock => {
-    if (stock.score < filters.minScore) return false;
-    if (parseFloat(stock.ltp) < filters.minPrice || parseFloat(stock.ltp) > filters.maxPrice) return false;
-    if (filters.sectors.length > 0 && !filters.sectors.includes(stock.sector)) return false;
-    return true;
-  });
-
-  const sortedStocks = [...filteredStocks].sort((a, b) => {
-    const aVal = a[sortConfig.key];
-    const bVal = b[sortConfig.key];
-    const modifier = sortConfig.direction === 'asc' ? 1 : -1;
-    return (parseFloat(aVal) - parseFloat(bVal)) * modifier;
-  });
-
-  const handleSort = (key) => {
-    setSortConfig(prev => ({
-      key,
-      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
-    }));
-  };
-
-  const downloadCSV = () => {
-    const headers = ['Symbol', 'LTP', 'Score', 'Volume Mult', 'ATR', 'Expected Move (₹)', 'Expected Move (%)', 'RSI', 'Sector', 'Breakout Type'];
-    const rows = sortedStocks.map(s => [
-      s.symbol, s.ltp, s.score, s.volumeMult, s.atr, s.expectedMove, s.expectedMovePct, s.rsi, s.sector, s.breakoutType
-    ]);
-    
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `stock_scout_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
-  const sectorHeatmap = sectors.map(sector => ({
-    sector,
-    count: stocks.filter(s => s.sector === sector && s.score >= 70).length
-  })).sort((a, b) => b.count - a.count);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-              <TrendingUp className="text-green-400" size={40} />
-              ₹20-₹30 Stock Scout — India
-            </h1>
-            <p className="text-gray-400">NSE Market Scanner • Real-time Opportunity Finder</p>
-          </div>
-          <button
-            onClick={scanMarket}
-            disabled={loading}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all transform hover:scale-105"
-          >
-            <RefreshCw className={loading ? 'animate-spin' : ''} size={20} />
-            {loading ? 'Scanning...' : 'Refresh Scan'}
-          </button>
-        </div>
-
-        {/* Progress Bar */}
-        {loading && (
-          <div className="mb-6 bg-slate-800 rounded-lg p-4">
-            <div className="flex justify-between mb-2 text-sm">
-              <span>Scanning NSE stocks...</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="w-full bg-slate-700 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Stats Bar */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-800/50 backdrop-blur rounded-lg p-4 border border-slate-700">
-            <div className="text-gray-400 text-sm mb-1">Total Opportunities</div>
-            <div className="text-3xl font-bold text-green-400">{sortedStocks.length}</div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur rounded-lg p-4 border border-slate-700">
-            <div className="text-gray-400 text-sm mb-1">Avg Score</div>
-            <div className="text-3xl font-bold text-blue-400">
-              {sortedStocks.length > 0 ? Math.round(sortedStocks.reduce((a, b) => a + b.score, 0) / sortedStocks.length) : 0}
-            </div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur rounded-lg p-4 border border-slate-700">
-            <div className="text-gray-400 text-sm mb-1">High Score (≥80)</div>
-            <div className="text-3xl font-bold text-yellow-400">
-              {sortedStocks.filter(s => s.score >= 80).length}
-            </div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur rounded-lg p-4 border border-slate-700">
-            <div className="text-gray-400 text-sm mb-1">Last Updated</div>
-            <div className="text-lg font-semibold text-gray-300">
-              {lastUpdate ? lastUpdate.toLocaleTimeString() : '--:--:--'}
-            </div>
-          </div>
-        </div>
-
-        {/* Filters & Heatmap Section */}
-        <div className="grid grid-cols-3 gap-6 mb-6">
-          {/* Filters */}
-          <div className="col-span-2 bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-slate-700">
-            <div className="flex items-center gap-2 mb-4">
-              <Filter size={20} className="text-blue-400" />
-              <h3 className="text-xl font-semibold">Filters</h3>
-            </div>
+        async function fetchStockData(symbol) {
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 100));
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Min Score: {filters.minScore}</label>
-                <input
-                  type="range"
-                  min="60"
-                  max="100"
-                  value={filters.minScore}
-                  onChange={(e) => setFilters({...filters, minScore: parseInt(e.target.value)})}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Price Range</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={filters.minPrice}
-                    onChange={(e) => setFilters({...filters, minPrice: parseInt(e.target.value)})}
-                    className="w-full bg-slate-700 rounded px-3 py-2 text-sm"
-                    placeholder="Min"
-                  />
-                  <input
-                    type="number"
-                    value={filters.maxPrice}
-                    onChange={(e) => setFilters({...filters, maxPrice: parseInt(e.target.value)})}
-                    className="w-full bg-slate-700 rounded px-3 py-2 text-sm"
-                    placeholder="Max"
-                  />
-                </div>
-              </div>
-            </div>
+            const basePrice = Math.random() * 1000 + 100;
+            const atr = basePrice * (0.02 + Math.random() * 0.03);
+            const volume = Math.random() * 50000000 + 5000000;
+            const avgVolume = volume / (1.5 + Math.random() * 2);
+            const rsi = 40 + Math.random() * 40;
+            const prevHigh = basePrice * (0.98 + Math.random() * 0.04);
+            const day20High = basePrice * (0.95 + Math.random() * 0.08);
+            const vwap = basePrice * (0.98 + Math.random() * 0.02);
+            
+            let score = 0;
+            const volumeMultiplier = volume / avgVolume;
+            
+            if (volumeMultiplier >= 3) score += 20;
+            else if (volumeMultiplier >= 2) score += 10;
+            if (basePrice > day20High) score += 15;
+            if (basePrice > prevHigh) score += 10;
+            if (rsi > 60) score += 10;
+            if (basePrice > vwap) score += 10;
+            if (Math.random() > 0.5) score += 10;
+            if (atr > basePrice * 0.025) score += 10;
+            if (Math.random() > 0.7) score += 15;
+            
+            const expectedMove = Math.max(atr * 1.5, basePrice * 0.03);
+            const expectedMovePct = (expectedMove / basePrice) * 100;
+            
+            return {
+                symbol: symbol.replace('.NS', ''),
+                ltp: basePrice,
+                score: Math.round(score),
+                volumeMultiplier: volumeMultiplier.toFixed(2),
+                atr: atr.toFixed(2),
+                expectedMove: expectedMove.toFixed(2),
+                expectedMovePct: expectedMovePct.toFixed(2),
+                rsi: rsi.toFixed(1),
+                sector: SECTOR_MAP[symbol] || 'Others',
+                tradedValue: (basePrice * volume) / 10000000
+            };
+        }
 
-            <div className="mt-4">
-              <label className="block text-sm text-gray-400 mb-2">Mode</label>
-              <select
-                value={filters.mode}
-                onChange={(e) => setFilters({...filters, mode: e.target.value})}
-                className="w-full bg-slate-700 rounded px-3 py-2"
-              >
-                <option value="all">All</option>
-                <option value="intraday">Intraday Only</option>
-                <option value="swing">Swing (1-5 Days)</option>
-              </select>
-            </div>
-          </div>
+        async function scanMarket() {
+            loading = true;
+            progress = 0;
+            render();
+            
+            const results = [];
+            const batchSize = 50;
+            const totalBatches = Math.ceil(NSE_STOCKS.length / batchSize);
+            
+            for (let i = 0; i < totalBatches; i++) {
+                const batch = NSE_STOCKS.slice(i * batchSize, (i + 1) * batchSize);
+                const batchPromises = batch.map(symbol => fetchStockData(symbol).catch(() => null));
+                const batchResults = await Promise.all(batchPromises);
+                results.push(...batchResults.filter(r => r !== null));
+                progress = Math.round(((i + 1) / totalBatches) * 100);
+                render();
+            }
+            
+            stocks = results.filter(stock => 
+                stock.ltp >= filters.minPrice &&
+                stock.ltp <= filters.maxPrice &&
+                stock.tradedValue >= 20 &&
+                stock.volumeMultiplier >= 2 &&
+                stock.atr >= 5 &&
+                stock.score >= filters.minScore &&
+                parseFloat(stock.expectedMove) >= 20
+            );
+            
+            loading = false;
+            render();
+        }
 
-          {/* Sector Heatmap */}
-          <div className="bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-slate-700">
-            <h3 className="text-xl font-semibold mb-4">Sector Heatmap</h3>
-            <div className="space-y-2">
-              {sectorHeatmap.slice(0, 6).map(item => (
-                <div key={item.sector} className="flex justify-between items-center">
-                  <span className="text-sm">{item.sector}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full"
-                        style={{ width: `${Math.min(100, item.count * 10)}%` }}
-                      />
+        function sortStocks() {
+            stocks.sort((a, b) => {
+                let aVal = a[sortKey];
+                let bVal = b[sortKey];
+                if (typeof aVal === 'string' && !isNaN(parseFloat(aVal))) {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                }
+                if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function handleSort(key) {
+            if (sortKey === key) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortKey = key;
+                sortDir = 'desc';
+            }
+            sortStocks();
+            render();
+        }
+
+        function downloadCSV() {
+            const headers = ['Symbol', 'LTP', 'Score', 'Volume Multiplier', 'ATR', 'Expected Move (₹)', 'Expected Move (%)', 'RSI', 'Sector'];
+            const rows = stocks.map(s => [
+                s.symbol, s.ltp.toFixed(2), s.score, s.volumeMultiplier, s.atr, s.expectedMove, s.expectedMovePct, s.rsi, s.sector
+            ]);
+            const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stock_scout_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function render() {
+            sortStocks();
+            
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 border border-blue-500/30">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-4">
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="trending-up" class="w-10 h-10 text-green-400"></i>
+                            <div>
+                                <h1 class="text-3xl font-bold gradient-text">₹20–₹30 Stock Scout — India</h1>
+                                <p class="text-sm text-slate-400 mt-1">Live Market Scanner • NSE Equity • ${stocks.length} Opportunities</p>
+                            </div>
+                        </div>
+                        <button 
+                            onclick="scanMarket()" 
+                            ${loading ? 'disabled' : ''}
+                            class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg hover:from-green-600 hover:to-blue-600 transition-all disabled:opacity-50 shadow-lg">
+                            <i data-lucide="refresh-cw" class="w-5 h-5 ${loading ? 'animate-spin' : ''}"></i>
+                            ${loading ? 'Scanning...' : 'Refresh Scan'}
+                        </button>
                     </div>
-                    <span className="text-sm font-semibold text-green-400 w-6">{item.count}</span>
-                  </div>
+                    ${loading ? `
+                        <div class="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-green-500 to-blue-500 transition-all" style="width: ${progress}%"></div>
+                        </div>
+                    ` : ''}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* Download Button */}
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={downloadCSV}
-            className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all"
-          >
-            <Download size={18} />
-            Download CSV
-          </button>
-        </div>
+                <div class="bg-amber-900/30 border border-amber-500/50 rounded-lg p-4 mb-6 flex items-start gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                    <p class="text-sm text-amber-200"><strong>Disclaimer:</strong> Educational tool only. Not investment advice.</p>
+                </div>
 
-        {/* Stock Table */}
-        <div className="bg-slate-800/50 backdrop-blur rounded-lg border border-slate-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900/80">
-                <tr>
-                  {[
-                    { key: 'symbol', label: 'Symbol' },
-                    { key: 'ltp', label: 'LTP (₹)' },
-                    { key: 'score', label: 'Score' },
-                    { key: 'volumeMult', label: 'Vol Mult' },
-                    { key: 'atr', label: 'ATR' },
-                    { key: 'expectedMove', label: 'Exp Move (₹)' },
-                    { key: 'expectedMovePct', label: 'Exp Move (%)' },
-                    { key: 'rsi', label: 'RSI' },
-                    { key: 'sector', label: 'Sector' },
-                    { key: 'breakoutType', label: 'Breakout' }
-                  ].map(col => (
-                    <th
-                      key={col.key}
-                      onClick={() => handleSort(col.key)}
-                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-slate-800 transition-colors"
-                    >
-                      {col.label}
-                      {sortConfig.key === col.key && (
-                        <span className="ml-1">{sortConfig.direction === 'desc' ? '↓' : '↑'}</span>
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedStocks.map((stock, idx) => (
-                  <tr 
-                    key={stock.symbol}
-                    className="border-t border-slate-700 hover:bg-slate-700/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-semibold text-blue-300">{stock.symbol}</td>
-                    <td className="px-4 py-3">₹{stock.ltp}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-3 py-1 rounded-full font-semibold text-sm ${
-                        stock.score >= 80 ? 'bg-green-500/20 text-green-300' :
-                        stock.score >= 70 ? 'bg-yellow-500/20 text-yellow-300' :
-                        'bg-blue-500/20 text-blue-300'
-                      }`}>
-                        {stock.score}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-green-400">{stock.volumeMult}x</td>
-                    <td className="px-4 py-3">₹{stock.atr}</td>
-                    <td className="px-4 py-3 font-semibold text-green-400">₹{stock.expectedMove}</td>
-                    <td className="px-4 py-3 font-semibold text-green-400">{stock.expectedMovePct}%</td>
-                    <td className="px-4 py-3">{stock.rsi}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-slate-700 rounded text-xs">{stock.sector}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
-                        {stock.breakoutType}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="lg:col-span-1 bg-slate-800/50 rounded-xl p-5 border border-blue-500/30">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i data-lucide="filter" class="w-5 h-5 text-blue-400"></i>
+                            <h2 class="text-lg font-semibold">Filters</h2>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm text-slate-400 block mb-2">Min Score: ${filters.minScore}</label>
+                                <input type="range" min="50" max="100" value="${filters.minScore}" 
+                                    onchange="filters.minScore = parseInt(this.value); render();" 
+                                    class="w-full">
+                            </div>
+                            <button onclick="downloadCSV()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Download CSV
+                            </button>
+                        </div>
+                    </div>
 
-        {/* Disclaimer */}
-        <div className="mt-6 bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-yellow-400 mt-1" size={20} />
-          <div className="text-sm text-yellow-200">
-            <strong>Disclaimer:</strong> This is a scouting tool for educational purposes only. Not investment advice. 
-            No guarantee of returns. Past patterns do not predict future performance. Always do your own research 
-            and consult a financial advisor before trading.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+                    <div class="lg:col-span-3 bg-slate-800/50 rounded-xl border border-blue-500/30 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-slate-700/50">
+                                    <tr>
+                                        ${['symbol', 'ltp', 'score', 'volumeMultiplier', 'expectedMove', 'expectedMovePct', 'rsi', 'sector'].map(key => `
+                                            <th onclick="handleSort('${key}')" class="px-4 py-3 text-left text-xs font-semibold text-slate-300 cursor-pointer hover:bg-slate-600/50">
+                                                ${key === 'symbol' ? 'Symbol' : key === 'ltp' ? 'LTP (₹)' : key === 'score' ? 'Score' : key === 'volumeMultiplier' ? 'Vol' : key === 'expectedMove' ? 'Move (₹)' : key === 'expectedMovePct' ? 'Move (%)' : key === 'rsi' ? 'RSI' : 'Sector'}
+                                                ${sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                                            </th>
+                                        `).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${stocks.map(stock => `
+                                        <tr class="border-t border-slate-700 hover:bg-slate-700/30">
+                                            <td class="px-4 py-3 font-semibold text-blue-400">${stock.symbol}</td>
+                                            <td class="px-4 py-3">₹${parseFloat(stock.ltp).toFixed(2)}</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 rounded text-xs font-bold ${
+                                                    stock.score >= 80 ? 'bg-green-500/20 text-green-400' :
+                                                    stock.score >= 70 ? 'bg-blue-500/20 text-blue-400' :
+                                                    'bg-yellow-500/20 text-yellow-400'
+                                                }">${stock.score}</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-green-400">${stock.volumeMultiplier}x</td>
+                                            <td class="px-4 py-3 font-bold text-green-400">₹${stock.expectedMove}</td>
+                                            <td class="px-4 py-3 font-bold text-green-400">${stock.expectedMovePct}%</td>
+                                            <td class="px-4 py-3">${stock.rsi}</td>
+                                            <td class="px-4 py-3 text-sm">${stock.sector}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            lucide.createIcons();
+        }
 
-export default StockScoutApp;
+        // Initial render and scan
+        render();
+        scanMarket();
+    </script>
+</body>
+</html>
