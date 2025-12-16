@@ -431,4 +431,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-Free Indian stock scanner for ₹20–₹30 moves - Claude
